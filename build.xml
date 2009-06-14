@@ -1,7 +1,7 @@
 <project name="jQTemplate" default="build">
 	<property name="src.dir" location="src" />
 	<property name="tools.dir" location="tools" />
-	<property name="dest.dir" location="dest" />
+	<property name="dest.dir" location="dist" />
 	<property name="YUICompressor" location="${tools.dir}/yuicompressor-2.4.2.jar" />
 	<property file="build.properties" />
 
