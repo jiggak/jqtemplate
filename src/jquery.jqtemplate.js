@@ -96,24 +96,7 @@
    // Recursively evaluate nodes of the template and their children.
    function evalNode(node, $this) {
       while (true) {
-         if (node.attr("jqbind")) {
-            var bindings = evalAndRemoveAttr(node, "jqbind", $this);
-            $.each($.makeArray(bindings), function(i, binding) {
-               node.bind(binding.event, function() {
-                  // apply will call the function with a given 'this' object
-                  // and an array of function parameters
-                  // ... in the current context, 'this' is the dom element
-                  // that the event is bound to
-                  binding.fn.apply(this, $.makeArray(binding.args));
-               });
-            });
-         } else if (node.attr("jqattr")) {
-            var attrs = evalAndRemoveAttr(node, "jqattr", $this);
-            $.each(attrs, function(key, val) { node.attr(key, val); });
-         } else if (node.attr("jqtext")) {
-            var text = evalAndRemoveAttr(node, "jqtext", $this);
-            node.text(text);
-         } else if (node.attr("jqloop")) {
+         if (node.attr("jqloop")) {
             var op = evalAndRemoveAttr(node, "jqloop", $this);
             
             var first = node;
@@ -137,6 +120,23 @@
             
             first.remove();
             return;
+         } else if (node.attr("jqbind")) {
+            var bindings = evalAndRemoveAttr(node, "jqbind", $this);
+            $.each($.makeArray(bindings), function(i, binding) {
+               node.bind(binding.event, function() {
+                  // apply will call the function with a given 'this' object
+                  // and an array of function parameters
+                  // ... in the current context, 'this' is the dom element
+                  // that the event is bound to
+                  binding.fn.apply(this, $.makeArray(binding.args));
+               });
+            });
+         } else if (node.attr("jqattr")) {
+            var attrs = evalAndRemoveAttr(node, "jqattr", $this);
+            $.each(attrs, function(key, val) { node.attr(key, val); });
+         } else if (node.attr("jqtext")) {
+            var text = evalAndRemoveAttr(node, "jqtext", $this);
+            node.text(text);
          } else {
             break;
          }
