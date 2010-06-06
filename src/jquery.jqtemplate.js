@@ -1,7 +1,7 @@
 /*
  * jQtemplate jQuery plugin
  *
- * Copyright (c) 2009 Josh Kropf
+ * Copyright (c) 2009-2010 Josh Kropf
  *
  * Licensed under the GPL license:
  *   http://www.gnu.org/licenses/gpl.html
@@ -61,100 +61,89 @@
    $.fn.jqtemplate = function(model, options) {
       var opts = $.extend({}, $.fn.jqtemplate.defaults, options),
           templatePath = this.selector + "/";
-      
+
       if (this.data("compiled") != true) {
-         compileTemplate(this, this.selector);
+         compileTemplate(this);
          this.data("compiled", true);
       }
-      
+
       if (opts.inplace) {
          return this.each(function(i, node) {
-            evalNode(model, node, templatePath + node.get(0).nodeName);
+            evalNode(model, $(node), $(node));
          });
       } else {
          // when root option is a string use it as a selector, otherwise
          // assume it is already a jquery object for the root node
          var root = typeof(opts.root) == "string"? $(opts.root) : opts.root;
-         
+
          return this.each(function(i, node) {
             var copy = $(node).clone();
             root.append(copy);
-            evalNode(model, copy, templatePath + node.nodeName);
+            evalNode(model, copy, $(node));
          });
       }
    };
-   
+
    $.fn.jqtemplate.defaults = {
       inplace: false,
       root: "body"
    };
-   
-   /**
-    * Map of attribute functions.  Keys of the map are path representations
-    * of the template node that contains jqtemplate attributes.  The value for
-    * a given key is the compiled function.
-    */
-   var attrCallback = {};
-   
+
    /**
     * Recursively create function objects for jqtemplate attributes.
     * @param node current template node
-    * @param path path representation of template node
     */
-   function compileTemplate(node, path) {
-      path = path + "/" + node.get(0).nodeName;
-      
+   function compileTemplate(node) {
       var names = ["jqloop", "jqbind", "jqattr", "jqtext"];
       for (var i in names) {
-         if (node.attr(names[i])) {
-            var f = new Function(["$this"], "return " + node.attr(names[i]));
-            attrCallback[path + "/" + names[i]] = f;
+         var attr = names[i];
+         if (node.attr(attr)) {
+            node.data(attr, new Function(["$this"], "return " + node.attr(attr)));
          }
       }
-      
+
       node.children().each(function(i, node) {
-         compileTemplate($(node), path);
+         compileTemplate($(node));
       });
    }
-   
+
    /**
     * Recursively evaluate nodes of the template and their children.
     * @param $this object model/context of template evaluation
-    * @param node current template node
-    * @param path path representation of template node
+    * @param node current node to be manipulated in the dom
+    * @param templateNode current template node
     */
-   function evalNode($this, node, path) {
+   function evalNode($this, node, templateNode) {
       if (node.attr("jqloop")) {
-         var op = attrCallback[path + "/jqloop"]($this),
-             first = node,
-             last = node;
-         
+         var op = templateNode.data("jqloop")($this),
+             first = node, current = node;
+
          // remove jqloop attribute to avoid infinate recursion
          node.removeAttr("jqloop");
-         
+
          // iterate over objects in the loop array and create/add
          // new nodes in the dom
          for (var i in op.array) {
             // place the current array element in the template context
             $this[op.object] = op.array[i];
-            
-            // clone the first node (the template node) and
-            // add it after the last node
-            var copy = $(first.clone());
-            last.after(copy);
-            last = copy;
-            
+
+            // clone the current node and add it after the current
+            var next = $(node.clone());
+            current.after(next);
+            current = next;
+
             // evaluate the cloned node
-            evalNode($this, copy, path);
+            evalNode($this, next, templateNode);
          }
-         
+
+         // first node is used as a place holder and is not evaluated
          first.remove();
          return;
       }
-      
+
       if (node.attr("jqbind")) {
-         var bindings = $.makeArray(attrCallback[path + "/jqbind"]($this));
-         
+         var bindings = templateNode.data("jqbind")($this);
+
          for (var i in bindings) {
             node.bind(bindings[i].event, bindings[i], function(event) {
                // apply will call the function with a given 'this' object
@@ -166,22 +155,24 @@
             });
          }
       }
-      
+
       if (node.attr("jqattr")) {
-         var attrs = attrCallback[path + "/jqattr"]($this);
+         var attrs = templateNode.data("jqattr")($this);
          for (var key in attrs) {
             node.attr(key, attrs[key]);
          }
       }
-      
+
       if (node.attr("jqtext")) {
-         var text = attrCallback[path + "/jqtext"]($this);
-         node.text(text);
+         node.text(templateNode.data("jqtext")($this));
       }
-      
-      node.children().each(function(i, node) {
-         evalNode($this, $(node), path + "/" + node.nodeName);
-      });
+
+      (function(nodeChild, templateChild) {
+         if (nodeChild.length != 0) {
+            evalNode($this, nodeChild, templateChild);
+            arguments.callee(nodeChild.next(), templateChild.next());
+         }
+      })(node.children().first(), templateNode.children().first());
    }
 
 })(jQuery);
